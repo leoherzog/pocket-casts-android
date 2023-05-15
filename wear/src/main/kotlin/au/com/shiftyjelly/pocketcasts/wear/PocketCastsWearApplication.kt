@@ -16,9 +16,11 @@ import au.com.shiftyjelly.pocketcasts.repositories.podcast.PlaylistManager
 import au.com.shiftyjelly.pocketcasts.repositories.podcast.PodcastManager
 import au.com.shiftyjelly.pocketcasts.repositories.user.UserManager
 import au.com.shiftyjelly.pocketcasts.utils.TimberDebugTree
+import au.com.shiftyjelly.pocketcasts.utils.log.LogBuffer
 import com.google.firebase.FirebaseApp
 import com.google.firebase.analytics.FirebaseAnalytics
 import dagger.hilt.android.HiltAndroidApp
+import io.reactivex.plugins.RxJavaPlugins
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -45,6 +47,18 @@ class PocketCastsWearApplication : Application(), Configuration.Provider {
         setupLogging()
         setupAnalytics()
         setupApp()
+
+        RxJavaPlugins.setErrorHandler {
+            // RxJava's default error handler crashes the app on any uncaught exception. Allow
+            // that on debug builds, but swallow the error in release builds.
+            // See https://github.com/ReactiveX/RxJava/wiki/What's-different-in-2.0#error-handling
+            if (BuildConfig.DEBUG) {
+                Timber.e("Throwing an uncaught exception from RxJava. This exception would have been caught in a release build.")
+                throw it
+            } else {
+                LogBuffer.e(LogBuffer.TAG_RX_JAVA_DEFAULT_ERROR_HANDLER, it.message ?: "")
+            }
+        }
     }
 
     private fun setupLogging() {
